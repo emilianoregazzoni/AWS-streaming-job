@@ -95,4 +95,5 @@ Then I created a basic charts in Power BI and measures to find some insights fro
 
 ![image](https://github.com/emilianoregazzoni/AWS-streaming-job/assets/20979227/296e0cfd-fdbf-49bc-86f9-e96ce2152037)
 
-Here I can see that Netflix and Amazon Prime have the most
+Here I can see that Netflix and Amazon Prime have the majority of TV shows. It's something logic, because they are the oldest platforms. Hulu and Disney Plus are newer.
+Also I can notice that more or less, in this dataset I had
