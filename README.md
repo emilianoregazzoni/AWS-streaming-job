@@ -91,3 +91,8 @@ except Exception as e:
 
 ## __4. Power BI Dashboard__
 
+Then I created a basic charts in Power BI and measures to find some insights from this dataset.
+
+![image](https://github.com/emilianoregazzoni/AWS-streaming-job/assets/20979227/296e0cfd-fdbf-49bc-86f9-e96ce2152037)
+
+Here I can see that Netflix and Amazon Prime have the most
