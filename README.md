@@ -21,9 +21,13 @@ Once I have it uploaded, I have to transform data. The transformation I want to 
 
 ![image](https://github.com/emilianoregazzoni/AWS-streaming-job/assets/20979227/d3604277-6c9e-4f18-9d77-b9d38c652449)
 
-I remove the s, convert the first identifier column to type INT and add the streaming service company as a new column:
+I removed the s, I converted the first identifier column to type INT and I added the streaming service company as a new column:
 
 ![image](https://github.com/emilianoregazzoni/AWS-streaming-job/assets/20979227/d2c0ea33-e92a-4108-af66-91c05c0f57f0)
+
+I did all this transformation using a SQL query transformation step that provides Glue, putting this code in the step was enough:
+
+`select CAST(substring(show_id, 2) AS INT) AS id ,type,title,director,cast,country,date_added,release_year,rating,duration,listed_in,description,  '{supplier_name}' as supplier from myDataSource`
 
 Finally the job looks like this:
 
@@ -37,8 +41,53 @@ The transformation went well:
 
 ![image](https://github.com/emilianoregazzoni/AWS-streaming-job/assets/20979227/44a9812b-5358-4138-bb01-bba3af3785f2)
 
-Then I need to create an Access key to access to resources from AWS. In this case
+## __3. Download info to desktop__
+
+Then I need to create an Access key to access to resources from AWS. In this case I want to download manually the files, when I wanted, so I created a short Python script that provides me this functionality. But for do that, I used my access key provided by AWS.
 
 ![image](https://github.com/emilianoregazzoni/AWS-streaming-job/assets/20979227/2f410aa7-d1e8-4ab4-ac64-6d1cd0e6d7ac)
 
+The Python script:
+
+```
+import boto3
+import os
+
+ACCESS_KEY = 'ACCESS_KEY'
+SECRET_KEY = 'SECRET_KEY'
+bucket_name = 'bucketname'
+files = [
+    'results/amazonPrime.csv',
+    'results/disneyPlus.csv',
+    'results/hulu.csv',
+    'results/netflix.csv'
+]
+local_path = 'C:\\Users\\location'
+
+# Crear una sesión de boto3
+session = boto3.Session(
+    aws_access_key_id=ACCESS_KEY,
+    aws_secret_access_key=SECRET_KEY
+)
+
+# Crear un cliente S3
+s3_client = session.client('s3')
+
+if not os.path.exists(local_path):
+    os.makedirs(local_path)
+try:
+    for file_path in files:
+        file_name = file_path.split('/')[-1]
+        s3_client.download_file(bucket_name, file_path, os.path.join(local_path, file_name))
+        print(f"Archivo descargado: {file_name}")
+        
+  print("Todos los archivos se descargaron exitosamente.")
+    
+except Exception as e:
+    print(f"Error al descargar archivos: {e}")
+```
+
+![image](https://github.com/emilianoregazzoni/AWS-streaming-job/assets/20979227/d87b88c5-33e5-4449-981c-b8d713526cc3)
+
+## __4. Power BI Dashboard__
 
