@@ -1,0 +1,91 @@
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsglue import DynamicFrame
+import boto3
+
+def sparkSqlQuery(glueContext, query, mapping, transformation_ctx) -> DynamicFrame:
+    for alias, frame in mapping.items():
+        frame.toDF().createOrReplaceTempView(alias)
+    result = spark.sql(query)
+    return DynamicFrame.fromDF(result, glueContext, transformation_ctx)
+
+def move_and_rename_file(s3_client, bucket_name, temp_output_path, final_output_path):
+    # List the files in the temp output path
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=temp_output_path)
+    for obj in response.get('Contents', []):
+        key = obj['Key']
+        if key.endswith('.csv'):
+            # Copy the file to the final output path
+            copy_source = {'Bucket': bucket_name, 'Key': key}
+            s3_client.copy_object(CopySource=copy_source, Bucket=bucket_name, Key=final_output_path)
+            # Delete the original file
+            s3_client.delete_object(Bucket=bucket_name, Key=key)
+
+def process_file(glueContext, s3_client, bucket_name, input_file, supplier_name, output_file):
+    # Read the CSV file from S3
+    data_source = glueContext.create_dynamic_frame.from_options(
+        format_options={"quoteChar": "\"", "withHeader": True, "separator": ",", "optimizePerformance": False}, 
+        connection_type="s3", 
+        format="csv", 
+        connection_options={"paths": [input_file], "recurse": True}, 
+        transformation_ctx="data_source"
+    )
+
+    # Create the SQL query
+    sql_query = f'''
+    select 
+        CAST(substring(show_id, 2) AS INT) AS id,
+        type,
+        title,
+        director,
+        cast,
+        country,
+        date_added,
+        release_year,
+        rating,
+        duration,
+        listed_in,
+        description,
+        '{supplier_name}' as supplier
+    from myDataSource
+    '''
+    transformed_data = sparkSqlQuery(glueContext, query = sql_query, mapping = {"myDataSource":data_source}, transformation_ctx = "transformed_data")
+
+    # Repartition to a single partition to get a single output file
+    single_partition_df = transformed_data.toDF().repartition(1)
+
+    # Temporary output path
+    temp_output_path = "s3://bucketshows0624/temp_results/"
+
+    # Save as CSV to the temporary output path
+    single_partition_df.write.mode("overwrite").option("header", "true").csv(temp_output_path)
+
+    # Move and rename the file to the final output path
+    move_and_rename_file(s3_client, bucket_name, "temp_results/", output_file)
+
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+s3_client = boto3.client('s3')
+bucket_name = "bucketshows0624"
+
+# Process each file
+files = [
+    ("s3://bucketshows0624/amazon_prime_titles.csv", "amazon prime", "results/amazonPrime.csv"),
+    ("s3://bucketshows0624/disney_plus_titles.csv", "disney plus", "results/disneyPlus.csv"),
+    ("s3://bucketshows0624/hulu_titles.csv", "hulu", "results/hulu.csv"),
+    ("s3://bucketshows0624/netflix_titles.csv", "netflix", "results/netflix.csv")
+]
+
+for input_file, supplier_name, output_file in files:
+    process_file(glueContext, s3_client, bucket_name, input_file, supplier_name, output_file)
+
+job.commit()
