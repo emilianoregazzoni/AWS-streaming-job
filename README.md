@@ -118,3 +118,9 @@ Finally, I would like to know which categories have the most shows. So I created
 
 Clearly, the drama genre is the leader, followed by a relatively even distribution among the next genres.
 
+
+### Thank you
+
+Thank you to Lucy Wang for your valuable Youtube videos that allowed me to understand some approaches in terms of consuming and transforming data.
+
+The Spark code used for the Glue transformation and the final Power BI are located in the repository.
